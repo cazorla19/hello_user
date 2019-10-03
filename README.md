@@ -26,8 +26,17 @@ curl localhost:5000/hello/johndoe
 docker-compose exec api pytest
 ```
 
+## Diagrams
+
+You can find [AWS](./diagrams/aws.jpg) and [GCP](./diagrams/gcp.jpg) diagrams in `diagrams/`
+
 ## Additional achievements
 
 * CI/CD pipeline (Instructions in `Jenkinsfile` and `Jenkinsfile.deploy` included)
 * Jenkins Kubernetes plugin pod temlate (Spec in `pipeline/`)
 * Helm chart (The whole one is in `helm/`)
+
+## TODO
+
+* Add the Terraform state for EKS cluster and Elasticache infrastructure
+* Try out Redis-cluster setup for scalability profits
