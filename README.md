@@ -26,6 +26,8 @@ curl localhost:5000/hello/johndoe
 docker-compose exec api pytest
 ```
 
-## CI/CD pipeline
+## Additional achievements
 
-Instructions in `Jenkinsfile` and `Jenkinsfile.deploy` included.
+* CI/CD pipeline (Instructions in `Jenkinsfile` and `Jenkinsfile.deploy` included)
+* Jenkins Kubernetes plugin pod temlate (Spec in `pipeline/`)
+* Helm chart (The whole one is in `helm/`)
