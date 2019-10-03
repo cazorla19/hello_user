@@ -1,0 +1,58 @@
+# Default values for hello-user.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount:
+  min: 2
+  max: 6
+
+name: hello-user
+
+image:
+  repository: eu.gcr.io/example/hello-user
+  tag: latest
+  pullPolicy: Always
+  pullSecret: hello-user-gcr-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 5000
+
+ingress:
+  enabled: false
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: nginx
+    #kubernetes.io/tls-acme: "true"
+    # type of authentication
+    #nginx.ingress.kubernetes.io/auth-type: basic
+    # name of the secret that contains the user/password definitions
+    #nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    # message to display with an appropriate context why the authentication is required
+    #nginx.ingress.kubernetes.io/auth-realm: 'Eat bannanas'
+  path: /
+  hosts:
+    - hello-user.example.de
+  tls:
+    - secretName: hello-user-tls
+      hosts:
+        - hello-user.example.com
+
+podAutoscaling:
+  cpu: 50
+
+env: {}
+
+resources:
+  requests:
+   cpu: 0.1
+   memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

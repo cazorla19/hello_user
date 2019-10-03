@@ -1,0 +1,80 @@
+pipeline {
+    agent {
+        kubernetes {
+            label 'deploy'
+            defaultContainer 'jnlp'
+            idleMinutes 150
+            activeDeadlineSeconds 300
+            yaml libraryResource('pipeline/slave-template.yaml')
+        }
+    }
+    environment {
+        DOCKER_REGISTRY = "${Constants.DOCKER_REGISTRY}"
+        APP_NAME = "${config.app}"
+        RELEASE_VERSION = "${config.release}"
+        ENVIRONMENT = "${config.environment}"
+        REGION = "${config.region}"
+        NAMESPACE = "${config.namespace}"
+        BRANCH_NAME = "${config.release.substring(0, params.release.lastIndexOf("-"))}"
+        HELM_TIMEOUT = "${config.timeout}"
+        HELM_DEFAULT_TIMEOUT = "${Constants.HELM_DEFAULT_TIMEOUT}"
+    }
+    options {
+        disableConcurrentBuilds()
+        skipDefaultCheckout()
+    }
+    stages {
+        stage("Checkout [Infrastructure code]") {
+            steps {
+                checkout scm: [
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${BRANCH_NAME}"]],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [[$class: 'CleanCheckout']],
+                    submoduleCfg: [],
+                    userRemoteConfigs: scm.userRemoteConfigs
+                ]
+            }
+        }
+        stage("Deploy new version to the target environment") {
+            steps {
+                script {
+                    sh "cp /home/jenkins/.kube/${REGION}-${ENVIRONMENT}.yaml .kubeconfig"
+                    sh "helm init --client-only --skip-refresh --kubeconfig .kubeconfig"
+                    def timeout = "${HELM_TIMEOUT}"
+                    try {
+                        sh "helm upgrade --namespace ${NAMESPACE} --kubeconfig .kubeconfig --install -f helm/values-${ENVIRONMENT}.yaml --timeout ${timeout} --wait --set image.tag=\"${RELEASE_VERSION}\" ${APP_NAME} helm/${APP_NAME}"
+                    } catch (e) {
+                        sh "helm rollback --kubeconfig .kubeconfig ${APP_NAME} 0"
+                        throw e
+                    }
+                }
+            }
+        }
+        // Tag image as latest if it's up and running in production
+        stage('Tag image as latest') {
+            when {
+                expression { ENVIRONMENT == 'production' }
+            }
+            steps {
+                sh "docker pull ${DOCKER_REGISTRY}/${APP_NAME}:${RELEASE_VERSION}"
+                sh "docker tag ${DOCKER_REGISTRY}/${APP_NAME}:${RELEASE_VERSION} ${DOCKER_REGISTRY}/${APP_NAME}:latest"
+                sh "docker push ${DOCKER_REGISTRY}/${APP_NAME}:latest"
+            }
+        }
+    }
+    post {
+        success {
+            slackSend channel: '#jenkins-deploys', color: 'good',
+                    message: "${APP_NAME} deployment result (release: ${RELEASE_VERSION} env: ${REGION}-${ENVIRONMENT}) (<${BUILD_URL}|Open>): SUCCESS"
+        }
+        aborted {
+            slackSend channel: '#jenkins-deploys', color: 'warning',
+                    message: "${APP_NAME} deployment result (release: ${RELEASE_VERSION} env: ${REGION}-${ENVIRONMENT}) (<${BUILD_URL}|Open>): ABORTED"
+        }
+        failure {
+            slackSend channel: '#jenkins-deploys', color: 'danger',
+                    message: "${APP_NAME} deployment result (release: ${RELEASE_VERSION} env: ${REGION}-${ENVIRONMENT}) (<${BUILD_URL}|Open>): FAILURE"
+        }
+    }
+}

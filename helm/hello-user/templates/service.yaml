@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "hello-user.fullname" . }}
+  labels:
+    app: {{ include "hello-user.name" . }}
+    chart: {{ include "hello-user.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "hello-user.name" . }}
+    release: {{ .Release.Name }}
